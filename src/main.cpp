@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
         std::cerr << "用法: cbot <command> [args...]" << std::endl;
         std::cerr << "可用命令:\n";
         std::cerr << "  init <project_name>   初始化标准 C++ 项目结构\n";
-        std::cerr << "  cmake                 (未实现) 智能生成 CMakeLists.txt\n";
-        std::cerr << "  doc [path]            (未实现) 递归生成 Doxygen 注释\n";
+        std::cerr << "  cmake                 智能生成 CMakeLists.txt\n";
+        std::cerr << "  doc [path]            递归生成 Doxygen 注释\n";
         std::cerr << "  test_llm              测试 Gemini API 连通性\n"; // [新增] 帮助信息
         return 1;
     }
