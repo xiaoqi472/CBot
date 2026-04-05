@@ -1,3 +1,8 @@
+/**
+ * @file cmake.hpp
+ * @brief 包含处理 CMake 相关命令的函数。
+ */
+
 #include "commands/cmake.hpp"
 #include "utils/llm_client.hpp"
 #include <iostream>
@@ -12,7 +17,14 @@ namespace fs = std::filesystem;
 
 namespace {
 
-// 判断是否是需要忽略的目录
+/**
+ * @brief 判断给定的路径是否是需要忽略的目录。
+ *
+ * 忽略的目录包括 "build", ".git", ".vscode"。
+ *
+ * @param path 要检查的路径。
+ * @return 如果路径包含任何一个忽略的目录，则返回 true；否则返回 false。
+ */
 bool should_ignore(const fs::path& path) {
     std::string path_str = path.string();
     return path_str.find("/build") != std::string::npos ||
@@ -20,13 +32,27 @@ bool should_ignore(const fs::path& path) {
            path_str.find("/.vscode") != std::string::npos;
 }
 
-// 判断是否是 C/C++ 源码文件
+/**
+ * @brief 判断给定的路径是否是 C/C++ 源码文件。
+ *
+ * 支持的扩展名包括 ".cpp", ".hpp", ".c", ".h", ".cc"。
+ *
+ * @param path 要检查的文件路径。
+ * @return 如果是 C/C++ 源码文件，则返回 true；否则返回 false。
+ */
 bool is_source_file(const fs::path& path) {
     std::string ext = path.extension().string();
     return ext == ".cpp" || ext == ".hpp" || ext == ".c" || ext == ".h" || ext == ".cc";
 }
 
-// 提取文件中的 #include 语句
+/**
+ * @brief 从指定文件中提取所有 #include 语句。
+ *
+ * 逐行读取文件，查找以 "#include" 开头（忽略前导空格）的行。
+ *
+ * @param file_path 要读取的文件路径。
+ * @return 包含所有提取到的 #include 语句的字符串，每条语句后跟一个换行符。
+ */
 std::string extract_includes(const fs::path& file_path) {
     std::ifstream file(file_path);
     std::string line;
@@ -41,7 +67,15 @@ std::string extract_includes(const fs::path& file_path) {
     return includes.str();
 }
 
-// 剥离大模型可能返回的 Markdown 代码块标记 (如 ```cmake 和 ```)
+/**
+ * @brief 剥离大模型可能返回的 Markdown 代码块标记 (如 ```cmake 和 ```)。
+ *
+ * 该函数会去除文本开头和结尾的空白字符，然后检查并移除文本开头和结尾的 Markdown 代码块围栏。
+ * 它只会移除位于行首的围栏。
+ *
+ * @param text 包含潜在 Markdown 围栏的字符串。
+ * @return 剥离了 Markdown 围栏和多余空白的字符串。
+ */
 std::string clean_markdown(std::string text) {
     // 1. 去除首尾空白
     size_t s = text.find_first_not_of(" \n\r\t");
@@ -78,13 +112,28 @@ std::string clean_markdown(std::string text) {
     return text;
 }
 
-// 检查文件内容是否包含 cbot 管理标记
+/**
+ * @brief 检查文件内容是否包含 cbot 管理标记。
+ *
+ * 管理标记为 "# === CBOT_MANAGED_BEGIN ===" 和 "# === CBOT_MANAGED_END ==="。
+ *
+ * @param content 要检查的文件内容字符串。
+ * @return 如果内容同时包含开始和结束管理标记，则返回 true；否则返回 false。
+ */
 bool has_managed_block(const std::string& content) {
     return content.find("# === CBOT_MANAGED_BEGIN ===") != std::string::npos &&
            content.find("# === CBOT_MANAGED_END ===") != std::string::npos;
 }
 
-// 将新内容替换进标记之间，标记外的用户自定义内容保持不动
+/**
+ * @brief 将新内容替换进现有文件内容中由管理标记包围的区域。
+ *
+ * 标记外的用户自定义内容将保持不变。
+ *
+ * @param existing 现有文件的完整内容。
+ * @param new_content 要插入到管理区域的新内容。
+ * @return 替换了管理区域内容后的完整字符串。
+ */
 std::string splice_managed_content(const std::string& existing, const std::string& new_content) {
     const std::string begin_marker = "# === CBOT_MANAGED_BEGIN ===";
     const std::string end_marker   = "# === CBOT_MANAGED_END ===";
@@ -103,7 +152,12 @@ std::string splice_managed_content(const std::string& existing, const std::strin
     return before + new_content + "\n" + after;
 }
 
-// 首次生成时，将内容包裹在管理标记中，并附上用户自定义区提示
+/**
+ * @brief 将给定的内容包裹在 cbot 管理标记中，并附上用户自定义区提示。
+ *
+ * @param content 要包裹的字符串内容。
+ * @return 包裹了管理标记和用户自定义区提示的完整字符串。
+ */
 std::string wrap_with_markers(const std::string& content) {
     return "# === CBOT_MANAGED_BEGIN ===\n" +
            content + "\n"
@@ -117,6 +171,21 @@ std::string wrap_with_markers(const std::string& content) {
 namespace cbot {
 namespace commands {
 
+/**
+ * @brief 处理 CMake 命令，根据项目结构生成或更新 CMakeLists.txt 文件。
+ *
+ * 该函数会执行以下步骤：
+ * 1. 规范化目标路径，并检查其是否为有效目录。
+ * 2. 递归扫描目标目录下的 C/C++ 源码文件，收集项目结构和头文件依赖信息。
+ *    会忽略 "build", ".git", ".vscode" 等目录。
+ * 3. 将收集到的项目上下文发送给大模型，请求生成 CMakeLists.txt 配置。
+ * 4. 清洗大模型返回的内容，并根据以下规则写入 CMakeLists.txt：
+ *    - 如果文件不存在，则创建新文件并包裹管理标记。
+ *    - 如果文件存在且包含管理标记，则只更新标记内的内容（增量更新）。
+ *    - 如果文件存在但不包含管理标记，则提示用户是否覆写，若覆写则备份原文件并写入新内容（包裹管理标记）。
+ *
+ * @param target_path 用户指定的项目目标路径。
+ */
 void handle_cmake(const std::string& target_path) {
     fs::path work_dir;
 
@@ -161,7 +230,7 @@ void handle_cmake(const std::string& target_path) {
     }
 
     if (file_count == 0) {
-        std::cerr << "错误: 在目标目录下未发现任何 C/C++ 源码文件。" << std::endl;
+        std::cerr << "错误: 在目标目录下未发现任何 C/C++ 源码文件。" << std.endl;
         return;
     }
 
