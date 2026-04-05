@@ -35,3 +35,17 @@ target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 # === CBOT_MANAGED_END ===
 
 # ---- 以下为用户自定义区（cbot cmake 不会修改此区域）----
+
+# libclang（用于 cbot doc 的 C++ AST 解析）
+find_path(LIBCLANG_INCLUDE_DIR clang-c/Index.h
+    PATHS /usr/lib/llvm-18/include /usr/lib/llvm-17/include /usr/include
+)
+find_library(LIBCLANG_LIBRARY
+    NAMES clang libclang
+    PATHS /usr/lib/llvm-18/lib /usr/lib/llvm-17/lib /usr/lib /usr/lib/x86_64-linux-gnu
+)
+if(NOT LIBCLANG_INCLUDE_DIR OR NOT LIBCLANG_LIBRARY)
+    message(FATAL_ERROR "未找到 libclang，请安装: sudo apt install libclang-dev")
+endif()
+target_include_directories(${PROJECT_NAME} PRIVATE ${LIBCLANG_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBCLANG_LIBRARY})

@@ -1,9 +1,3 @@
-/**
- * @file main.cpp
- * @brief Cbot 命令行工具的主入口点。
- *
- * Cbot 是一个 C++ 项目辅助工具，提供项目初始化、CMakeLists.txt 生成、Doxygen 文档生成等功能。
- */
 #include <iostream>
 #include <vector>
 #include <string>
@@ -13,19 +7,16 @@
 #include "commands/doc.hpp" 
 #include "commands/build.hpp" 
 
+
 /**
- * @brief Cbot 命令行工具的主函数。
+ * @brief cbot 命令行工具的入口点。
  *
- * 解析命令行参数，并根据不同的命令执行相应的操作。
- * 支持的命令包括：
- * - `init <project_name>`: 初始化标准 C++ 项目结构。
- * - `cmake [path]`: 智能生成 CMakeLists.txt 文件。
- * - `doc <file1> [file2] ...`: 递归生成 Doxygen 注释。
- * - `test_llm`: 测试 Gemini API 连通性。
- * - `build`: 构建项目。
+ * 该函数解析命令行参数，并根据子命令（如 init, test_llm, cmake, doc, build）
+ * 路由到相应的处理函数。
+ *
  * @param argc 命令行参数的数量。
- * @param argv 命令行参数的字符串数组。
- * @return 0 表示成功，非0 表示错误。
+ * @param argv 包含命令行参数的 C 风格字符串数组。
+ * @return 0 表示成功执行，1 表示发生错误或用法不正确。
  */
 int main(int argc, char* argv[]) {
     std::vector<std::string> args(argv, argv + argc);

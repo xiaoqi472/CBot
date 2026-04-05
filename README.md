@@ -47,9 +47,12 @@ MyProject/
 
 ### 📝 `cbot doc <file1> [file2] ...` — AI 添加 Doxygen 注释
 
-读取指定的 C++ 文件，交由 AI 在不修改任何原有逻辑的前提下添加标准 Doxygen 注释块（`@file`、`@brief`、`@param`、`@return` 等）。
+使用 **libclang** 在本地解析 C++ AST，精确提取所有函数/类定义的行号和注释状态，再将结构化信息连同完整源码一并发给 AI。AI **只输出标签化的注释块**，不接触任何代码行；本地按行号将注释精确插入或替换到原文件对应位置。
 
-处理完成后会在终端完整预览生成结果，**必须手动确认后才会覆写原文件**，支持批量处理多个文件。
+- **代码安全**：原文件的所有代码行完全不经过 AI，从机制上杜绝 AI 误改代码的可能
+- **智能更新**：已有注释的函数会与当前代码核对，参数、返回值描述不符时自动更新
+- **预览确认**：写入前在终端完整展示结果，必须手动确认后才会覆写原文件
+- **批量处理**：支持一次传入多个文件
 
 ### 🌐 `cbot test_llm` — 测试 API 连通性
 
@@ -62,8 +65,13 @@ MyProject/
 ### 1. 环境依赖
 
 - **编译器**：支持 C++17 的 GCC 或 Clang
-- **系统库**：`OpenSSL`、`libcurl`（用于 HTTPS 通信）
+- **系统库**：`OpenSSL`、`libcurl`（用于 HTTPS 通信）、`libclang-dev`（用于 `cbot doc` 的 C++ 代码解析）
 - **API Key**：前往 [Google AI Studio](https://aistudio.google.com/) 获取免费的 Gemini API Key
+
+```bash
+# Ubuntu/Debian 安装系统依赖
+sudo apt install libssl-dev libcurl4-openssl-dev libclang-dev
+```
 
 ### 2. 编译
 
@@ -104,6 +112,7 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 - **`CBOT_API_KEY` 必须设置**，否则所有调用 AI 的命令（`cmake`、`doc`、`test_llm`）均会失败。
 - **`cbot cmake` 的管理标记不要手动删除**，否则下次运行将退回到整体覆写模式。用户自定义内容请统一写在 `CBOT_MANAGED_END` 标记之后。
 - **`cbot doc` 会修改源文件**，虽然写入前有预览确认步骤，建议在 Git 工作区干净的状态下使用，以便随时回退。
+- **`cbot doc` 依赖 libclang**，编译前需安装 `libclang-dev`，否则 cmake 会报错退出。
 - **`cbot build` 使用 `make -j4`** 固定 4 线程并行编译，如需调整请直接进入 `build/` 目录手动执行。
 - **重量级依赖（OpenCV、ROS 等）需要手动安装**，`cbot cmake` 只会生成 `find_package` 检测语句，不会自动下载。
 

@@ -31,6 +31,11 @@ int main(int argc, char* argv[]) {
 )";
 
 // 辅助函数：将字符串写入文件
+/**
+ * @brief 辅助函数，将字符串内容写入指定文件。
+ * @param file_path 要创建或写入的文件的路径。
+ * @param content 要写入文件的字符串内容。
+ */
 void create_file(const fs::path& file_path, const std::string& content) {
     std::ofstream ofs(file_path);
     if (!ofs.is_open()) {
@@ -46,6 +51,18 @@ void create_file(const fs::path& file_path, const std::string& content) {
 namespace cbot {
 namespace commands {
 
+/**
+ * @brief 处理 'init' 命令，初始化一个新的 C++ 项目结构。
+ *
+ * 该函数会在当前目录下创建一个以 `project_name` 命名的根目录，
+ * 并在其中创建 `src` 和 `include` 子目录。
+ * 同时，它会生成一个 `CMakeLists.txt` 文件和一个 `src/main.cpp` 文件，
+ * 其中 `CMakeLists.txt` 会根据 `project_name` 进行定制。
+ *
+ * 如果目标目录已存在，则会输出错误信息并退出。
+ *
+ * @param project_name 新项目的名称。这将作为根目录名和 CMake 项目名。
+ */
 void handle_init(const std::string& project_name) {
     fs::path root_dir = fs::current_path() / project_name;
 

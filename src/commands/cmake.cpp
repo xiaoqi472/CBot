@@ -230,7 +230,7 @@ void handle_cmake(const std::string& target_path) {
     }
 
     if (file_count == 0) {
-        std::cerr << "错误: 在目标目录下未发现任何 C/C++ 源码文件。" << std.endl;
+        std::cerr << "错误: 在目标目录下未发现任何 C/C++ 源码文件。" << std::endl;
         return;
     }
 
