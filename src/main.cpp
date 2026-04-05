@@ -11,7 +11,7 @@
 #include "utils/llm_client.hpp" 
 #include "commands/cmake.hpp" 
 #include "commands/doc.hpp" 
-
+#include "commands/build.hpp" 
 
 /**
  * @brief Cbot 命令行工具的主函数。
@@ -22,7 +22,7 @@
  * - `cmake [path]`: 智能生成 CMakeLists.txt 文件。
  * - `doc <file1> [file2] ...`: 递归生成 Doxygen 注释。
  * - `test_llm`: 测试 Gemini API 连通性。
- *
+ * - `build`: 构建项目。
  * @param argc 命令行参数的数量。
  * @param argv 命令行参数的字符串数组。
  * @return 0 表示成功，非0 表示错误。
@@ -35,8 +35,9 @@ int main(int argc, char* argv[]) {
         std::cerr << "可用命令:\n";
         std::cerr << "  init <project_name>   初始化标准 C++ 项目结构\n";
         std::cerr << "  cmake                 智能生成 CMakeLists.txt\n";
-        std::cerr << "  doc [path]            递归生成 Doxygen 注释\n";
+        std::cerr << "  doc <file1> [file2] ...   递归生成 Doxygen 注释\n";
         std::cerr << "  test_llm              测试 Gemini API 连通性\n"; // [新增] 帮助信息
+        std::cerr << "  build                  构建项目\n";
         return 1;
     }
 
@@ -82,6 +83,9 @@ int main(int argc, char* argv[]) {
         // 将命令行传入的多个文件路径打包为 vector
         std::vector<std::string> target_files(args.begin() + 2, args.end());
         cbot::commands::handle_doc(target_files);
+    }
+    else if (command == "build") {
+        cbot::commands::handle_build();
     }
     else {
         std::cerr << "未知命令: " << command << std::endl;
