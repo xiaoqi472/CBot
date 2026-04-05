@@ -1,3 +1,7 @@
+/**
+ * @file doc.cpp
+ * @brief Implements the 'doc' command for cbot, which uses an LLM to add Doxygen comments to C++ files.
+ */
 #include "commands/doc.hpp"
 #include "utils/llm_client.hpp"
 #include <iostream>
@@ -9,18 +13,49 @@ namespace fs = std::filesystem;
 
 namespace {
 
-// 复用：清洗大模型可能返回的 Markdown 标记
+/**
+ * @brief Cleans potential Markdown fences (```cpp, ```) from the beginning and end of a string.
+ *
+ * This function is designed to process text responses from large language models (LLMs)
+ * that might wrap their output in Markdown code blocks. It carefully removes
+ * leading and trailing Markdown fences without affecting content in the middle.
+ *
+ * @param text The input string, potentially containing Markdown fences.
+ * @return The cleaned string with leading/trailing Markdown fences removed.
+ */
 std::string clean_markdown(std::string text) {
-    size_t start_pos = text.find("```");
-    if (start_pos != std::string::npos) {
-        size_t newline_pos = text.find('\n', start_pos);
-        if (newline_pos != std::string::npos) text.erase(0, newline_pos + 1);
+    // 1. 去除首尾空白
+    size_t s = text.find_first_not_of(" \n\r\t");
+    if (s == std::string::npos) return "";
+    text.erase(0, s);
+    size_t e = text.find_last_not_of(" \n\r\t");
+    text.erase(e + 1);
+
+    // 2. 只剥离文本开头的围栏（``` 或 ```cpp 等），不触碰中间内容
+    if (text.size() >= 3 && text.compare(0, 3, "```") == 0) {
+        size_t newline = text.find('\n');
+        if (newline != std::string::npos)
+            text.erase(0, newline + 1);
+        else
+            return "";  // 整个文本只有一行围栏，清空
     }
-    size_t end_pos = text.rfind("```");
-    if (end_pos != std::string::npos) text.erase(end_pos);
-    
-    text.erase(0, text.find_first_not_of(" \n\r\t"));
-    text.erase(text.find_last_not_of(" \n\r\t") + 1);
+
+    // 3. 重新去尾部空白
+    e = text.find_last_not_of(" \n\r\t");
+    if (e == std::string::npos) return "";
+    text.erase(e + 1);
+
+    // 4. 只剥离文本末尾的围栏：必须在行首（前一字符是 \n 或文本起始）
+    if (text.size() >= 3 && text.compare(text.size() - 3, 3, "```") == 0) {
+        size_t end_fence = text.size() - 3;
+        if (end_fence == 0 || text[end_fence - 1] == '\n') {
+            text.erase(end_fence);
+            e = text.find_last_not_of(" \n\r\t");
+            if (e == std::string::npos) return "";
+            text.erase(e + 1);
+        }
+    }
+
     return text;
 }
 
@@ -29,6 +64,16 @@ std::string clean_markdown(std::string text) {
 namespace cbot {
 namespace commands {
 
+/**
+ * @brief Handles the 'doc' command, processing a list of C++ files to add Doxygen comments using an LLM.
+ *
+ * This function iterates through the provided file paths, reads their content,
+ * sends the code to a large language model (LLM) for Doxygen comment generation,
+ * cleans the LLM's response, and then prompts the user for confirmation
+ * before overwriting the original file with the commented version.
+ *
+ * @param files A constant reference to a vector of strings, where each string is a path to a C++ file to be processed.
+ */
 void handle_doc(const std::vector<std::string>& files) {
     cbot::utils::LLMClient client;
 
