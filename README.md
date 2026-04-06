@@ -54,6 +54,30 @@ MyProject/
 - **预览确认**：写入前在终端完整展示结果，必须手动确认后才会覆写原文件
 - **批量处理**：支持一次传入多个文件
 
+### 🎨 `cbot format [--init] [路径/文件...]` — 代码格式化
+
+统一代码风格，降低团队协作和代码审查成本。
+
+**初始化配置文件：**
+
+```bash
+cbot format --init
+```
+
+在当前目录生成 `.clang-format` 配置文件，以 `BasedOnStyle: Google` 为基础，并调整为更常见的 C++ 风格（4 空格缩进、指针左对齐）。若文件已存在，会询问是否覆写。
+
+**格式化代码：**
+
+```bash
+cbot format                        # 递归格式化当前目录下所有 C/C++ 文件
+cbot format src/main.cpp           # 格式化指定文件
+cbot format src/ include/          # 格式化指定目录（递归）
+cbot format src/foo.cpp mylib/     # 文件和目录混用
+```
+
+- 自动跳过 `build/`、`.git/`、`.vscode/` 等无关目录
+- 格式化某个文件失败时，会询问 **[A]bort / [S]kip**：选择 Abort 则恢复所有已格式化文件的原始内容再退出，选择 Skip 则跳过当前文件继续
+
 ### 🌐 `cbot test_llm` — 测试 API 连通性
 
 向 Gemini API 发送一条测试请求，验证 API Key 和网络是否正常。
@@ -65,12 +89,12 @@ MyProject/
 ### 1. 环境依赖
 
 - **编译器**：支持 C++17 的 GCC 或 Clang
-- **系统库**：`OpenSSL`、`libcurl`（用于 HTTPS 通信）、`libclang-dev`（用于 `cbot doc` 的 C++ 代码解析）
+- **系统库**：`OpenSSL`、`libcurl`（用于 HTTPS 通信）、`libclang-dev`（用于 `cbot doc` 的 C++ 代码解析）、`clang-format`（用于 `cbot format`）
 - **API Key**：前往 [Google AI Studio](https://aistudio.google.com/) 获取免费的 Gemini API Key
 
 ```bash
 # Ubuntu/Debian 安装系统依赖
-sudo apt install libssl-dev libcurl4-openssl-dev libclang-dev
+sudo apt install libssl-dev libcurl4-openssl-dev libclang-dev clang-format
 ```
 
 ### 2. 编译
@@ -103,6 +127,7 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 | `cmake [路径]` | 智能生成/增量更新 CMakeLists.txt | `cbot cmake` 或 `cbot cmake ../other` |
 | `build` | 一键编译当前项目 | `cbot build` |
 | `doc <文件...>` | AI 添加 Doxygen 注释 | `cbot doc src/main.cpp include/utils.hpp` |
+| `format [--init] [路径/文件...]` | 格式化代码 | `cbot format` 或 `cbot format --init` |
 | `test_llm` | 测试 Gemini API 连通性 | `cbot test_llm` |
 
 ---
@@ -115,6 +140,9 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 - **`cbot doc` 依赖 libclang**，编译前需安装 `libclang-dev`，否则 cmake 会报错退出。
 - **`cbot build` 使用 `make -j4`** 固定 4 线程并行编译，如需调整请直接进入 `build/` 目录手动执行。
 - **重量级依赖（OpenCV、ROS 等）需要手动安装**，`cbot cmake` 只会生成 `find_package` 检测语句，不会自动下载。
+- **`cbot format` 依赖 `clang-format`**，执行前会自动检测是否安装，未安装时会给出安装提示。
+- **`cbot format` 会就地修改源文件**，建议在 Git 工作区干净的状态下使用。格式化失败时支持 Abort 回滚，但成功完成的格式化不可自动撤销。
+- **`cbot format --init` 生成的 `.clang-format` 仅为推荐模板**，可根据团队规范自行修改，`cbot format` 执行时会自动读取该文件。
 
 ---
 

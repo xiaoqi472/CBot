@@ -1,11 +1,12 @@
 #include "commands/init.hpp"
-#include <iostream>
+
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
-namespace { // 匿名命名空间，仅在本文件内可见
+namespace {  // 匿名命名空间，仅在本文件内可见
 
 // 硬编码的 CMakeLists.txt 模板
 const std::string CMAKE_TEMPLATE = R"(cmake_minimum_required(VERSION 3.10)
@@ -46,7 +47,7 @@ void create_file(const fs::path& file_path, const std::string& content) {
     ofs.close();
 }
 
-} // 结束匿名命名空间
+}  // namespace
 
 namespace cbot {
 namespace commands {
@@ -68,10 +69,11 @@ void handle_init(const std::string& project_name) {
 
     try {
         if (fs::exists(root_dir)) {
-            std::cerr << "错误: 目录 '" << project_name << "' 已存在，请换一个名称或删除该目录。" << std::endl;
+            std::cerr << "错误: 目录 '" << project_name << "' 已存在，请换一个名称或删除该目录。"
+                      << std::endl;
             return;
         }
-        
+
         fs::create_directory(root_dir);
         fs::create_directory(root_dir / "src");
         fs::create_directory(root_dir / "include");
@@ -79,7 +81,7 @@ void handle_init(const std::string& project_name) {
         std::string cmake_content = CMAKE_TEMPLATE;
         size_t pos = cmake_content.find("%PROJECT_NAME%");
         if (pos != std::string::npos) {
-            cmake_content.replace(pos, 14, project_name); 
+            cmake_content.replace(pos, 14, project_name);
         }
         create_file(root_dir / "CMakeLists.txt", cmake_content);
         create_file(root_dir / "src" / "main.cpp", MAIN_TEMPLATE);
@@ -94,5 +96,5 @@ void handle_init(const std::string& project_name) {
     }
 }
 
-} // namespace commands
-} // namespace cbot
+}  // namespace commands
+}  // namespace cbot

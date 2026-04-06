@@ -11,5 +11,5 @@ namespace commands {
  */
 void handle_doc(const std::vector<std::string>& files);
 
-} // namespace commands
-} // namespace cbot
+}  // namespace commands
+}  // namespace cbot

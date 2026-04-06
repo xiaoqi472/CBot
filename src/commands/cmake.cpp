@@ -4,14 +4,16 @@
  */
 
 #include "commands/cmake.hpp"
-#include "utils/llm_client.hpp"
-#include <iostream>
+
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <string>
+#include <iostream>
 #include <sstream>
+#include <string>
 #include <vector>
-#include <algorithm>
+
+#include "utils/llm_client.hpp"
 
 namespace fs = std::filesystem;
 
@@ -70,8 +72,8 @@ std::string extract_includes(const fs::path& file_path) {
 /**
  * @brief 剥离大模型可能返回的 Markdown 代码块标记 (如 ```cmake 和 ```)。
  *
- * 该函数会去除文本开头和结尾的空白字符，然后检查并移除文本开头和结尾的 Markdown 代码块围栏。
- * 它只会移除位于行首的围栏。
+ * 该函数会去除文本开头和结尾的空白字符，然后检查并移除文本开头和结尾的 Markdown
+ * 代码块围栏。 它只会移除位于行首的围栏。
  *
  * @param text 包含潜在 Markdown 围栏的字符串。
  * @return 剥离了 Markdown 围栏和多余空白的字符串。
@@ -79,7 +81,8 @@ std::string extract_includes(const fs::path& file_path) {
 std::string clean_markdown(std::string text) {
     // 1. 去除首尾空白
     size_t s = text.find_first_not_of(" \n\r\t");
-    if (s == std::string::npos) return "";
+    if (s == std::string::npos)
+        return "";
     text.erase(0, s);
     size_t e = text.find_last_not_of(" \n\r\t");
     text.erase(e + 1);
@@ -95,7 +98,8 @@ std::string clean_markdown(std::string text) {
 
     // 3. 重新去尾部空白
     e = text.find_last_not_of(" \n\r\t");
-    if (e == std::string::npos) return "";
+    if (e == std::string::npos)
+        return "";
     text.erase(e + 1);
 
     // 4. 只剥离文本末尾的围栏：必须在行首（前一字符是 \n 或文本起始）
@@ -104,7 +108,8 @@ std::string clean_markdown(std::string text) {
         if (end_fence == 0 || text[end_fence - 1] == '\n') {
             text.erase(end_fence);
             e = text.find_last_not_of(" \n\r\t");
-            if (e == std::string::npos) return "";
+            if (e == std::string::npos)
+                return "";
             text.erase(e + 1);
         }
     }
@@ -136,10 +141,10 @@ bool has_managed_block(const std::string& content) {
  */
 std::string splice_managed_content(const std::string& existing, const std::string& new_content) {
     const std::string begin_marker = "# === CBOT_MANAGED_BEGIN ===";
-    const std::string end_marker   = "# === CBOT_MANAGED_END ===";
+    const std::string end_marker = "# === CBOT_MANAGED_END ===";
 
     size_t begin_pos = existing.find(begin_marker);
-    size_t end_pos   = existing.find(end_marker);
+    size_t end_pos = existing.find(end_marker);
 
     // 保留 BEGIN 那一整行（含换行），替换到 END 标记之前
     size_t begin_line_end = existing.find('\n', begin_pos);
@@ -147,7 +152,7 @@ std::string splice_managed_content(const std::string& existing, const std::strin
         begin_line_end = begin_pos + begin_marker.size();
 
     std::string before = existing.substr(0, begin_line_end + 1);
-    std::string after  = existing.substr(end_pos); // 从 END 行开始（含）
+    std::string after = existing.substr(end_pos);  // 从 END 行开始（含）
 
     return before + new_content + "\n" + after;
 }
@@ -159,14 +164,14 @@ std::string splice_managed_content(const std::string& existing, const std::strin
  * @return 包裹了管理标记和用户自定义区提示的完整字符串。
  */
 std::string wrap_with_markers(const std::string& content) {
-    return "# === CBOT_MANAGED_BEGIN ===\n" +
-           content + "\n"
+    return "# === CBOT_MANAGED_BEGIN ===\n" + content +
+           "\n"
            "# === CBOT_MANAGED_END ===\n"
            "\n"
            "# ---- 以下为用户自定义区（cbot cmake 不会修改此区域）----\n";
 }
 
-} // 匿名命名空间结束
+}  // namespace
 
 namespace cbot {
 namespace commands {
@@ -182,7 +187,8 @@ namespace commands {
  * 4. 清洗大模型返回的内容，并根据以下规则写入 CMakeLists.txt：
  *    - 如果文件不存在，则创建新文件并包裹管理标记。
  *    - 如果文件存在且包含管理标记，则只更新标记内的内容（增量更新）。
- *    - 如果文件存在但不包含管理标记，则提示用户是否覆写，若覆写则备份原文件并写入新内容（包裹管理标记）。
+ *    -
+ * 如果文件存在但不包含管理标记，则提示用户是否覆写，若覆写则备份原文件并写入新内容（包裹管理标记）。
  *
  * @param target_path 用户指定的项目目标路径。
  */
@@ -212,10 +218,11 @@ void handle_cmake(const std::string& target_path) {
     // 2. 扫描文件系统，使用规范化后的 work_dir 作为基准
     try {
         for (const auto& entry : fs::recursive_directory_iterator(work_dir)) {
-            if (entry.is_regular_file() && !should_ignore(entry.path()) && is_source_file(entry.path())) {
+            if (entry.is_regular_file() && !should_ignore(entry.path()) &&
+                is_source_file(entry.path())) {
                 fs::path relative_path = fs::relative(entry.path(), work_dir);
                 project_context << "文件: " << relative_path.string() << "\n";
-                
+
                 std::string includes = extract_includes(entry.path());
                 if (!includes.empty()) {
                     project_context << "包含的头文件:\n" << includes;
@@ -234,11 +241,12 @@ void handle_cmake(const std::string& target_path) {
         return;
     }
 
-    std::cout << "扫描完成，共发现 " << file_count << " 个源码文件。正在请求大模型推断 CMake 配置..." << std::endl;
+    std::cout << "扫描完成，共发现 " << file_count
+              << " 个源码文件。正在请求大模型推断 CMake 配置..." << std::endl;
 
     // 3. 网络请求
-    cbot::utils::LLMClient client; 
-    
+    cbot::utils::LLMClient client;
+
     // 使用 Raw String 注入带有模板的强约束提示词
     std::string system_prompt = R"(
 你是一个顶级的 C++ 构建工程师。请根据用户提供的 C++ 项目目录结构和头文件依赖关系，编写 CMakeLists.txt。
@@ -299,7 +307,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
     if (fs::exists(cmake_path)) {
         // 读取现有文件，判断是否有 cbot 管理标记
         std::ifstream ifs(cmake_path);
-        std::string existing((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+        std::string existing((std::istreambuf_iterator<char>(ifs)),
+                             std::istreambuf_iterator<char>());
         ifs.close();
 
         if (has_managed_block(existing)) {
@@ -309,7 +318,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
             if (out.is_open()) {
                 out << updated;
                 out.close();
-                std::cout << "✅ 成功: 已增量更新 CMakeLists.txt（标记外的自定义内容已保留）" << std::endl;
+                std::cout << "✅ 成功: 已增量更新 CMakeLists.txt（标记外的自定义内容已保留）"
+                          << std::endl;
             } else {
                 std::cerr << "错误: 无法写入 CMakeLists.txt 文件。" << std::endl;
             }
@@ -317,8 +327,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
         }
 
         // 无标记的旧文件，走原有覆写流程
-        std::cout << "\n⚠️ 警告: 目标目录 [" << work_dir.string() << "] 下已存在 CMakeLists.txt（无 cbot 管理标记）。" << std::endl;
-        std::cout << "是否要让 AI 覆写它？(原文件会自动备份，覆写后将添加管理标记以支持后续增量更新) [y/N]: ";
+        std::cout << "\n⚠️ 警告: 目标目录 [" << work_dir.string()
+                  << "] 下已存在 CMakeLists.txt（无 cbot 管理标记）。" << std::endl;
+        std::cout << "是否要让 AI "
+                     "覆写它？(原文件会自动备份，覆写后将添加管理标记以支持后续增量更新) "
+                     "[y/N]: ";
 
         std::string answer;
         std::getline(std::cin, answer);
@@ -354,5 +367,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
     }
 }
 
-} // namespace commands
-} // namespace cbot
+}  // namespace commands
+}  // namespace cbot

@@ -10,5 +10,5 @@ namespace commands {
  */
 void handle_cmake(const std::string& target_path = ".");
 
-} // namespace commands
-} // namespace cbot
+}  // namespace commands
+}  // namespace cbot

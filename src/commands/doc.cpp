@@ -1,18 +1,21 @@
 /**
  * @file doc.cpp
- * @brief 实现 cbot doc 命令：通过 libclang 解析 C++ AST，结合 LLM 生成 Doxygen 注释并精确写回原文件。
+ * @brief 实现 cbot doc 命令：通过 libclang 解析 C++ AST，结合 LLM 生成 Doxygen
+ * 注释并精确写回原文件。
  */
 #include "commands/doc.hpp"
-#include "utils/llm_client.hpp"
-#include "utils/cpp_parser.hpp"
-#include <iostream>
+
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <map>
-#include <algorithm>
+
+#include "utils/cpp_parser.hpp"
+#include "utils/llm_client.hpp"
 
 namespace fs = std::filesystem;
 
@@ -20,13 +23,12 @@ namespace {
 
 // 构造发给 LLM 的 user prompt：声明列表 + 完整源码
 std::string build_llm_prompt(const std::string& source_code,
-                              const std::vector<cbot::utils::DeclInfo>& decls) {
+                             const std::vector<cbot::utils::DeclInfo>& decls) {
     std::ostringstream oss;
     oss << "需要生成/更新注释的声明列表：\n";
     int idx = 1;
     for (const auto& d : decls) {
-        oss << idx++ << ". [" << d.name << ":" << d.declaration_line << "] "
-            << d.signature;
+        oss << idx++ << ". [" << d.name << ":" << d.declaration_line << "] " << d.signature;
         if (d.has_comment)
             oss << "  （已有注释，请核对并按需更新）";
         else
@@ -57,12 +59,14 @@ std::map<unsigned, std::string> parse_llm_comments(const std::string& response) 
             if (in_comment && current_line > 0) {
                 std::string comment = current_comment.str();
                 size_t e = comment.find_last_not_of(" \n\r\t");
-                if (e != std::string::npos) comment = comment.substr(0, e + 1);
-                if (!comment.empty()) result[current_line] = comment;
+                if (e != std::string::npos)
+                    comment = comment.substr(0, e + 1);
+                if (!comment.empty())
+                    result[current_line] = comment;
             }
 
             // 解析行号：取最后一个 ':' 到 ']' 之间的数字
-            size_t colon   = line.rfind(':');
+            size_t colon = line.rfind(':');
             size_t bracket = line.rfind(']');
             if (colon != std::string::npos && bracket != std::string::npos && colon < bracket) {
                 std::string num_str = line.substr(colon + 1, bracket - colon - 1);
@@ -73,7 +77,7 @@ std::map<unsigned, std::string> parse_llm_comments(const std::string& response) 
                     in_comment = true;
                 } catch (...) {
                     current_line = 0;
-                    in_comment  = false;
+                    in_comment = false;
                 }
             }
             continue;
@@ -88,8 +92,10 @@ std::map<unsigned, std::string> parse_llm_comments(const std::string& response) 
     if (in_comment && current_line > 0) {
         std::string comment = current_comment.str();
         size_t e = comment.find_last_not_of(" \n\r\t");
-        if (e != std::string::npos) comment = comment.substr(0, e + 1);
-        if (!comment.empty()) result[current_line] = comment;
+        if (e != std::string::npos)
+            comment = comment.substr(0, e + 1);
+        if (!comment.empty())
+            result[current_line] = comment;
     }
 
     return result;
@@ -98,8 +104,8 @@ std::map<unsigned, std::string> parse_llm_comments(const std::string& response) 
 // 将注释写回原文件内容，从后往前处理避免行号偏移
 // 原文件代码行完全不经过 LLM，安全性 100%
 std::string apply_comments(const std::string& original_source,
-                            const std::vector<cbot::utils::DeclInfo>& decls,
-                            const std::map<unsigned, std::string>& comments) {
+                           const std::vector<cbot::utils::DeclInfo>& decls,
+                           const std::map<unsigned, std::string>& comments) {
     // 按行拆分（保留空行）
     std::vector<std::string> lines;
     std::istringstream stream(original_source);
@@ -117,7 +123,8 @@ std::string apply_comments(const std::string& original_source,
 
     for (const auto& decl : sorted) {
         auto it = comments.find(decl.declaration_line);
-        if (it == comments.end()) continue; // LLM 未提供此声明的注释，保持原样
+        if (it == comments.end())
+            continue;  // LLM 未提供此声明的注释，保持原样
 
         // 将注释文本拆成行
         std::vector<std::string> comment_lines;
@@ -130,18 +137,17 @@ std::string apply_comments(const std::string& original_source,
         if (decl.has_comment) {
             // 替换已有注释块（行号 1-based → 0-based）
             unsigned start = decl.comment_start_line - 1;
-            unsigned end   = decl.comment_end_line;       // exclusive
+            unsigned end = decl.comment_end_line;  // exclusive
             if (start < lines.size() && end <= lines.size()) {
                 lines.erase(lines.begin() + start, lines.begin() + end);
-                lines.insert(lines.begin() + start,
-                             comment_lines.begin(), comment_lines.end());
+                lines.insert(lines.begin() + start, comment_lines.begin(), comment_lines.end());
             }
         } else {
             // 在声明行前插入新注释
-            unsigned insert_pos = decl.declaration_line - 1; // 0-based
+            unsigned insert_pos = decl.declaration_line - 1;  // 0-based
             if (insert_pos <= lines.size()) {
-                lines.insert(lines.begin() + insert_pos,
-                             comment_lines.begin(), comment_lines.end());
+                lines.insert(lines.begin() + insert_pos, comment_lines.begin(),
+                             comment_lines.end());
             }
         }
     }
@@ -150,7 +156,8 @@ std::string apply_comments(const std::string& original_source,
     std::ostringstream result;
     for (size_t i = 0; i < lines.size(); ++i) {
         result << lines[i];
-        if (i + 1 < lines.size()) result << "\n";
+        if (i + 1 < lines.size())
+            result << "\n";
     }
     if (!original_source.empty() && original_source.back() == '\n')
         result << "\n";
@@ -158,7 +165,7 @@ std::string apply_comments(const std::string& original_source,
     return result.str();
 }
 
-} // 匿名命名空间
+}  // namespace
 
 namespace cbot {
 namespace commands {
@@ -203,7 +210,7 @@ void handle_doc(const std::vector<std::string>& files) {
         }
 
         // 2. libclang 解析：获取所有函数/类定义及行号
-        std::string abs_path    = fs::absolute(file_path).string();
+        std::string abs_path = fs::absolute(file_path).string();
         std::string include_dir = (file_path.parent_path().parent_path() / "include").string();
         auto decls = cbot::utils::parse_declarations(abs_path, {include_dir});
 
@@ -217,7 +224,7 @@ void handle_doc(const std::vector<std::string>& files) {
         // 3. 读取原始代码
         std::ifstream ifs(file_path);
         std::string original_code((std::istreambuf_iterator<char>(ifs)),
-                                   std::istreambuf_iterator<char>());
+                                  std::istreambuf_iterator<char>());
         ifs.close();
 
         // 4. 构造 prompt，调用 LLM（LLM 只看代码，只输出注释）
@@ -267,5 +274,5 @@ void handle_doc(const std::vector<std::string>& files) {
     std::cout << "\n🎉 所有指定文件处理完毕！\n";
 }
 
-} // namespace commands
-} // namespace cbot
+}  // namespace commands
+}  // namespace cbot

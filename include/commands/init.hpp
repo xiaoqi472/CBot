@@ -11,5 +11,5 @@ namespace commands {
  */
 void handle_init(const std::string& project_name);
 
-} // namespace commands
-} // namespace cbot
+}  // namespace commands
+}  // namespace cbot

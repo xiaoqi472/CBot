@@ -1,7 +1,9 @@
 #include "utils/llm_client.hpp"
-#include <iostream>
-#include <cstdlib>
+
 #include <cpr/cpr.h>
+
+#include <cstdlib>
+#include <iostream>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -11,7 +13,8 @@ namespace utils {
 
 LLMClient::LLMClient(const std::string& model) {
     // 自动拼接 Gemini 完整的 API 端点
-    endpoint_url_ = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
+    endpoint_url_ =
+        "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
     load_api_key();
 }
 
@@ -25,39 +28,30 @@ void LLMClient::load_api_key() {
     }
 }
 
-std::optional<std::string> LLMClient::generate_response(const std::string& system_prompt, const std::string& user_prompt) {
+std::optional<std::string> LLMClient::generate_response(const std::string& system_prompt,
+                                                        const std::string& user_prompt) {
     if (api_key_.empty()) {
         std::cerr << "错误: API Key 为空，无法发起请求。" << std::endl;
         return std::nullopt;
     }
 
     // 构造符合 Gemini 规范的 JSON 请求体
-    json payload = {
-        {"contents", {{
-            {"role", "user"},
-            {"parts", {{ {"text", user_prompt} }}}
-        }}},
-        {"generationConfig", {
-            {"temperature", 0.1} // 保持低随机性，确保代码任务的稳定性
-        }}
-    };
+    json payload = {{"contents", {{{"role", "user"}, {"parts", {{{"text", user_prompt}}}}}}},
+                    {"generationConfig",
+                     {
+                         {"temperature", 0.1}  // 保持低随机性，确保代码任务的稳定性
+                     }}};
 
     // 如果提供了系统提示词，则加入 systemInstruction 字段 (Gemini 专属结构)
     if (!system_prompt.empty()) {
-        payload["systemInstruction"] = {
-            {"parts", {{ {"text", system_prompt} }}}
-        };
+        payload["systemInstruction"] = {{"parts", {{{"text", system_prompt}}}}};
     }
 
     // 发起 HTTP POST 请求，Gemini 使用 x-goog-api-key 传递鉴权
-    cpr::Response r = cpr::Post(
-        cpr::Url{endpoint_url_},
-        cpr::Header{
-            {"x-goog-api-key", api_key_},
-            {"Content-Type", "application/json"}
-        },
-        cpr::Body{payload.dump()}
-    );
+    cpr::Response r =
+        cpr::Post(cpr::Url{endpoint_url_},
+                  cpr::Header{{"x-goog-api-key", api_key_}, {"Content-Type", "application/json"}},
+                  cpr::Body{payload.dump()});
 
     // 异常处理
     if (r.status_code != 200) {
@@ -82,5 +76,5 @@ std::optional<std::string> LLMClient::generate_response(const std::string& syste
     return std::nullopt;
 }
 
-} // namespace utils
-} // namespace cbot
+}  // namespace utils
+}  // namespace cbot

@@ -20,5 +20,5 @@ struct DeclInfo {
 std::vector<DeclInfo> parse_declarations(const std::string& file_path,
                                          const std::vector<std::string>& include_dirs = {});
 
-} // namespace utils
-} // namespace cbot
+}  // namespace utils
+}  // namespace cbot

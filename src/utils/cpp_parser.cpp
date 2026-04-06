@@ -1,9 +1,11 @@
 #include "utils/cpp_parser.hpp"
+
 #include <clang-c/Index.h>
-#include <iostream>
-#include <vector>
-#include <string>
+
 #include <algorithm>
+#include <iostream>
+#include <string>
+#include <vector>
 
 namespace cbot {
 namespace utils {
@@ -24,12 +26,18 @@ std::string cx_to_str(CXString cx) {
 
 std::string kind_to_str(CXCursorKind kind) {
     switch (kind) {
-        case CXCursor_FunctionDecl:  return "function";
-        case CXCursor_CXXMethod:     return "method";
-        case CXCursor_ClassDecl:     return "class";
-        case CXCursor_Constructor:   return "constructor";
-        case CXCursor_Destructor:    return "destructor";
-        default:                     return "unknown";
+        case CXCursor_FunctionDecl:
+            return "function";
+        case CXCursor_CXXMethod:
+            return "method";
+        case CXCursor_ClassDecl:
+            return "class";
+        case CXCursor_Constructor:
+            return "constructor";
+        case CXCursor_Destructor:
+            return "destructor";
+        default:
+            return "unknown";
     }
 }
 
@@ -37,11 +45,9 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor /*parent*/, CXClientData cl
     CXCursorKind kind = clang_getCursorKind(cursor);
 
     // 只处理目标节点类型
-    bool is_target = (kind == CXCursor_FunctionDecl  ||
-                      kind == CXCursor_CXXMethod      ||
-                      kind == CXCursor_ClassDecl      ||
-                      kind == CXCursor_Constructor    ||
-                      kind == CXCursor_Destructor);
+    bool is_target =
+        (kind == CXCursor_FunctionDecl || kind == CXCursor_CXXMethod ||
+         kind == CXCursor_ClassDecl || kind == CXCursor_Constructor || kind == CXCursor_Destructor);
     if (!is_target)
         return CXChildVisit_Recurse;
 
@@ -59,12 +65,12 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor /*parent*/, CXClientData cl
     auto* data = reinterpret_cast<VisitorData*>(client_data);
 
     DeclInfo info;
-    info.kind             = kind_to_str(kind);
-    info.name             = cx_to_str(clang_getCursorSpelling(cursor));
-    info.signature        = cx_to_str(clang_getCursorDisplayName(cursor));
-    info.has_comment      = false;
+    info.kind = kind_to_str(kind);
+    info.name = cx_to_str(clang_getCursorSpelling(cursor));
+    info.signature = cx_to_str(clang_getCursorDisplayName(cursor));
+    info.has_comment = false;
     info.comment_start_line = 0;
-    info.comment_end_line   = 0;
+    info.comment_end_line = 0;
 
     // 获取声明行号
     unsigned line, col, offset;
@@ -80,15 +86,15 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor /*parent*/, CXClientData cl
 
         CXSourceRange comment_range = clang_Cursor_getCommentRange(cursor);
         CXSourceLocation start = clang_getRangeStart(comment_range);
-        CXSourceLocation end   = clang_getRangeEnd(comment_range);
+        CXSourceLocation end = clang_getRangeEnd(comment_range);
 
         unsigned start_line, end_line, c, o;
         CXFile f;
         clang_getSpellingLocation(start, &f, &start_line, &c, &o);
-        clang_getSpellingLocation(end,   &f, &end_line,   &c, &o);
+        clang_getSpellingLocation(end, &f, &end_line, &c, &o);
 
         info.comment_start_line = start_line;
-        info.comment_end_line   = end_line;
+        info.comment_end_line = end_line;
     }
     clang_disposeString(raw_comment);
 
@@ -98,10 +104,10 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor /*parent*/, CXClientData cl
     return CXChildVisit_Recurse;
 }
 
-} // 匿名命名空间
+}  // namespace
 
 std::vector<DeclInfo> parse_declarations(const std::string& file_path,
-                                          const std::vector<std::string>& include_dirs) {
+                                         const std::vector<std::string>& include_dirs) {
     std::vector<DeclInfo> decls;
 
     CXIndex index = clang_createIndex(0, 0);
@@ -120,13 +126,9 @@ std::vector<DeclInfo> parse_declarations(const std::string& file_path,
 
     // 解析文件，忽略非致命错误（保证 AST 仍可提取声明）
     CXTranslationUnit tu = clang_parseTranslationUnit(
-        index,
-        file_path.c_str(),
-        args.data(),
-        static_cast<int>(args.size()),
-        nullptr, 0,
+        index, file_path.c_str(), args.data(), static_cast<int>(args.size()), nullptr, 0,
         CXTranslationUnit_KeepGoing |
-        CXTranslationUnit_SkipFunctionBodies * 0  // 不跳过函数体（需要区分定义和声明）
+            CXTranslationUnit_SkipFunctionBodies * 0  // 不跳过函数体（需要区分定义和声明）
     );
 
     if (!tu) {
@@ -150,5 +152,5 @@ std::vector<DeclInfo> parse_declarations(const std::string& file_path,
     return decls;
 }
 
-} // namespace utils
-} // namespace cbot
+}  // namespace utils
+}  // namespace cbot
