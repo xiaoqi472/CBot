@@ -23,18 +23,17 @@
 int main(int argc, char* argv[]) {
     std::vector<std::string> args(argv, argv + argc);
 
-    if (args.size() < 2) {
-        std::cerr << "用法: cbot <command> [args...]" << std::endl;
-        std::cerr << "可用命令:\n";
-        std::cerr << "  init <project_name>   初始化标准 C++ 项目结构\n";
-        std::cerr << "  cmake                 智能生成 CMakeLists.txt\n";
-        std::cerr << "  doc <file1> [file2] ...   递归生成 Doxygen 注释\n";
-        std::cerr << "  test_llm              测试 Gemini API 连通性\n";  // [新增]
-                                                                          // 帮助信息
-        std::cerr << "  build                  构建项目\n";
-        std::cerr << "  format [--init] [path/file...]  格式化代码\n";
-        std::cerr << "  commit                AI 生成 Git 提交信息\n";
-        return 1;
+    if (args.size() < 2 || args[1] == "--help" || args[1] == "-h") {
+        std::cout << "用法: cbot <command> [args...]\n";
+        std::cout << "可用命令:\n";
+        std::cout << "  init <project_name>            初始化标准 C++ 项目结构\n";
+        std::cout << "  cmake [路径]                   智能生成 CMakeLists.txt\n";
+        std::cout << "  build                          一键编译项目\n";
+        std::cout << "  doc <file1> [file2] ...        AI 添加 Doxygen 注释\n";
+        std::cout << "  format [--init] [路径/文件...] 代码格式化\n";
+        std::cout << "  commit                         AI 生成 Git 提交信息\n";
+        std::cout << "  test_llm                       测试 Gemini API 连通性\n";
+        return 0;
     }
 
     std::string command = args[1];
