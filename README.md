@@ -177,7 +177,7 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 - **`cbot cmake` 的管理标记不要手动删除**，否则下次运行将退回到整体覆写模式。用户自定义内容请统一写在 `CBOT_MANAGED_END` 标记之后。
 - **`cbot doc` 会修改源文件**，虽然写入前有预览确认步骤，建议在 Git 工作区干净的状态下使用，以便随时回退。
 - **`cbot doc` 依赖 libclang**，编译前需安装 `libclang-dev`，否则 cmake 会报错退出。
-- **`cbot build` 使用 `make -j4`** 固定 4 线程并行编译，如需调整请直接进入 `build/` 目录手动执行。
+- **`cbot build` 自动使用全部 CPU 核心并行编译**，如需调整请直接进入 `build/` 目录手动执行。
 - **重量级依赖（OpenCV、ROS 等）需要手动安装**，`cbot cmake` 只会生成 `find_package` 检测语句，不会自动下载。
 - **`cbot format` 依赖 `clang-format`**，执行前会自动检测是否安装，未安装时会给出安装提示。
 - **`cbot format` 会就地修改源文件**，建议在 Git 工作区干净的状态下使用。格式化失败时支持 Abort 回滚，但成功完成的格式化不可自动撤销。
