@@ -8,6 +8,7 @@
 #include "commands/doc.hpp"
 #include "commands/format.hpp"
 #include "commands/init.hpp"
+#include "commands/selfmgmt.hpp"
 #include "utils/llm_client.hpp"
 
 /**
@@ -32,6 +33,8 @@ int main(int argc, char* argv[]) {
         std::cout << "  doc <file1> [file2] ...        AI 添加 Doxygen 注释\n";
         std::cout << "  format [--init] [路径/文件...] 代码格式化\n";
         std::cout << "  commit                         AI 生成 Git 提交信息\n";
+        std::cout << "  update                         更新 cbot 至最新版本\n";
+        std::cout << "  uninstall                      卸载 cbot\n";
         std::cout << "  test_llm                       测试 Gemini API 连通性\n";
         return 0;
     }
@@ -93,6 +96,10 @@ int main(int argc, char* argv[]) {
         cbot::commands::handle_format(format_targets, init_mode);
     } else if (command == "commit") {
         cbot::commands::handle_commit();
+    } else if (command == "update") {
+        cbot::commands::handle_update();
+    } else if (command == "uninstall") {
+        cbot::commands::handle_uninstall();
     } else {
         std::cerr << "未知命令: " << command << std::endl;
         return 1;

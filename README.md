@@ -165,6 +165,8 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 | `doc <文件...>` | AI 添加 Doxygen 注释 | `cbot doc src/main.cpp include/utils.hpp` |
 | `format [--init] [路径/文件...]` | 格式化代码 | `cbot format` 或 `cbot format --init` |
 | `commit` | AI 生成 Git 提交信息 | `cbot commit` |
+| `update` | 更新 cbot 至最新版本 | `cbot update` |
+| `uninstall` | 卸载 cbot | `cbot uninstall` |
 | `test_llm` | 测试 Gemini API 连通性 | `cbot test_llm` |
 
 ---
@@ -182,6 +184,7 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 - **`cbot format --init` 生成的 `.clang-format` 仅为推荐模板**，可根据团队规范自行修改，`cbot format` 执行时会自动读取该文件。
 - **`cbot commit` 依赖暂存区有内容**，执行前请先 `git add`，否则会提示报错退出。
 - **`cbot commit` 的 `[e]dit` 选项**默认调起 `$EDITOR` 环境变量指定的编辑器，未设置时 fallback 到 `nano`。
+- **`cbot update` / `cbot uninstall` 仅对通过 `install.sh` 安装的用户有效**，手动安装的用户运行时会给出提示。
 
 ---
 

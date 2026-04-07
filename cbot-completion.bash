@@ -5,7 +5,7 @@ _cbot_completion() {
     local cur prev words cword
     _init_completion || return
 
-    local commands="init cmake build doc format commit test_llm"
+    local commands="init cmake build doc format commit update uninstall test_llm"
 
     case $cword in
         1)
@@ -31,7 +31,7 @@ _cbot_completion() {
                     COMPREPLY+=($(compgen -f -X '!*.@(cpp|hpp|c|h)' -- "$cur"))
                     COMPREPLY+=($(compgen -d -- "$cur"))
                     ;;
-                build|commit|test_llm)
+                build|commit|test_llm|update|uninstall)
                     COMPREPLY=()
                     ;;
             esac
