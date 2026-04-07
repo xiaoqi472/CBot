@@ -4,6 +4,7 @@
 
 #include "commands/build.hpp"
 #include "commands/cmake.hpp"
+#include "commands/commit.hpp"
 #include "commands/doc.hpp"
 #include "commands/format.hpp"
 #include "commands/init.hpp"
@@ -32,6 +33,7 @@ int main(int argc, char* argv[]) {
                                                                           // 帮助信息
         std::cerr << "  build                  构建项目\n";
         std::cerr << "  format [--init] [path/file...]  格式化代码\n";
+        std::cerr << "  commit                AI 生成 Git 提交信息\n";
         return 1;
     }
 
@@ -90,6 +92,8 @@ int main(int argc, char* argv[]) {
         if (!init_mode && format_targets.empty())
             format_targets.push_back(".");
         cbot::commands::handle_format(format_targets, init_mode);
+    } else if (command == "commit") {
+        cbot::commands::handle_commit();
     } else {
         std::cerr << "未知命令: " << command << std::endl;
         return 1;

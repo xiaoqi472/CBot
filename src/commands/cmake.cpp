@@ -286,7 +286,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
 # 示例：重量级库
 # find_package(OpenCV QUIET)
 # if(NOT OpenCV_FOUND)
-#     message(FATAL_ERROR "未找到 OpenCV，请手动安装。")
+#     message(FATAL_ERROR
+#         "未找到 OpenCV，请手动安装：\n"
+#         "  vcpkg install opencv4\n"
+#         "  或: sudo apt install libopencv-dev"
+#     )
 # endif()
 # target_link_libraries(${PROJECT_NAME} PRIVATE opencv_core)
 

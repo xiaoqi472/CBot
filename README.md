@@ -78,6 +78,25 @@ cbot format src/foo.cpp mylib/     # 文件和目录混用
 - 自动跳过 `build/`、`.git/`、`.vscode/` 等无关目录
 - 格式化某个文件失败时，会询问 **[A]bort / [S]kip**：选择 Abort 则恢复所有已格式化文件的原始内容再退出，选择 Skip 则跳过当前文件继续
 
+### 💬 `cbot commit` — AI 生成 Git 提交信息
+
+自动读取暂存区变更，交由 AI 推断修改目的，生成符合 Angular 规范的中文 commit message。
+
+```bash
+git add .
+cbot commit
+```
+
+**工作流程：**
+1. 读取 `git diff --staged` 暂存区变更
+2. AI 分析变更内容，生成符合 Angular 规范的提交信息（`feat:`、`fix:`、`refactor:` 等）
+3. 终端打印预览，询问 **[y/e/N]**：
+   - `y` — 直接执行提交
+   - `e` — 调起编辑器（`$EDITOR`，默认 `nano`）修改后提交
+   - `N` — 取消操作
+
+- diff 超过 8000 字符时自动降级为 `--stat` 模式并提示用户，避免超出上下文限制
+
 ### 🌐 `cbot test_llm` — 测试 API 连通性
 
 向 Gemini API 发送一条测试请求，验证 API Key 和网络是否正常。
@@ -128,6 +147,7 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 | `build` | 一键编译当前项目 | `cbot build` |
 | `doc <文件...>` | AI 添加 Doxygen 注释 | `cbot doc src/main.cpp include/utils.hpp` |
 | `format [--init] [路径/文件...]` | 格式化代码 | `cbot format` 或 `cbot format --init` |
+| `commit` | AI 生成 Git 提交信息 | `cbot commit` |
 | `test_llm` | 测试 Gemini API 连通性 | `cbot test_llm` |
 
 ---
@@ -143,6 +163,8 @@ export https_proxy="http://127.0.0.1:你的代理端口"
 - **`cbot format` 依赖 `clang-format`**，执行前会自动检测是否安装，未安装时会给出安装提示。
 - **`cbot format` 会就地修改源文件**，建议在 Git 工作区干净的状态下使用。格式化失败时支持 Abort 回滚，但成功完成的格式化不可自动撤销。
 - **`cbot format --init` 生成的 `.clang-format` 仅为推荐模板**，可根据团队规范自行修改，`cbot format` 执行时会自动读取该文件。
+- **`cbot commit` 依赖暂存区有内容**，执行前请先 `git add`，否则会提示报错退出。
+- **`cbot commit` 的 `[e]dit` 选项**默认调起 `$EDITOR` 环境变量指定的编辑器，未设置时 fallback 到 `nano`。
 
 ---
 
