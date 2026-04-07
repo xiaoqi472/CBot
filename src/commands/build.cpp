@@ -1,8 +1,10 @@
 #include "commands/build.hpp"
+
 #include <iostream>
 #include <filesystem>
 #include <thread>
-#include <cstdlib>
+
+#include "utils/process.hpp"
 
 namespace fs = std::filesystem;
 
@@ -28,16 +30,18 @@ void handle_build() {
     unsigned int jobs = std::thread::hardware_concurrency();
     if (jobs == 0) jobs = 1;
 
-    // 3. 构造 shell 命令
-    std::string cmd = "cd " + build_path.string() + " && cmake .. && make -j" + std::to_string(jobs);
+    std::cout << "执行命令: cmake .. && make -j" << jobs << "\n" << std::endl;
 
-    std::cout << "执行命令: " << cmd << "\n" << std::endl;
+    // 3. cmake 配置
+    int r = cbot::utils::run_interactive({"cmake", ".."}, build_path);
+    if (r != 0) {
+        std::cerr << "\n❌ cmake 配置失败，请检查上方错误输出。" << std::endl;
+        return;
+    }
 
-    // 4. 调用系统 shell 执行
-    int result = std::system(cmd.c_str());
-
-    // 5. 检查执行结果
-    if (result == 0) {
+    // 4. make 编译
+    r = cbot::utils::run_interactive({"make", "-j" + std::to_string(jobs)}, build_path);
+    if (r == 0) {
         std::cout << "\n✅ 编译成功！" << std::endl;
     } else {
         std::cerr << "\n❌ 编译失败，请检查上方错误输出。" << std::endl;

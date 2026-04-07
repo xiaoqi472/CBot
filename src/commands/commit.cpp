@@ -1,7 +1,5 @@
 #include "commands/commit.hpp"
 
-#include <array>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -9,6 +7,7 @@
 #include <string>
 
 #include "utils/llm_client.hpp"
+#include "utils/process.hpp"
 
 namespace fs = std::filesystem;
 
@@ -16,41 +15,29 @@ namespace {
 
 const size_t DIFF_SIZE_LIMIT = 100000;
 
-// 执行 shell 命令并捕获输出，返回 {exit_code, stdout}
-std::pair<int, std::string> run_command(const std::string& cmd) {
-    std::array<char, 256> buf;
-    std::string output;
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) return {-1, ""};
-    while (fgets(buf.data(), buf.size(), pipe))
-        output += buf.data();
-    int code = pclose(pipe);
-    return {WEXITSTATUS(code), output};
-}
-
 // 检查当前目录是否在 git 仓库中
 bool in_git_repo() {
-    auto [code, out] = run_command("git rev-parse --is-inside-work-tree 2>/dev/null");
-    return code == 0;
+    auto res = cbot::utils::run_capture({"git", "rev-parse", "--is-inside-work-tree"});
+    return res.exit_code == 0;
 }
 
 // 获取暂存区 diff
 // 超过 DIFF_SIZE_LIMIT 则降级为 --stat
 // 返回 {diff内容, 是否已降级}
 std::pair<std::string, bool> get_staged_diff() {
-    auto [code, diff] = run_command("git diff --staged 2>&1");
-    if (code != 0) return {"", false};
+    auto res = cbot::utils::run_capture({"git", "diff", "--staged"});
+    if (res.exit_code != 0)
+        return {"", false};
 
-    if (diff.size() > DIFF_SIZE_LIMIT) {
-        auto [scode, stat] = run_command("git diff --staged --stat 2>&1");
-        return {stat, true};
+    if (res.stdout_out.size() > DIFF_SIZE_LIMIT) {
+        auto stat = cbot::utils::run_capture({"git", "diff", "--staged", "--stat"});
+        return {stat.stdout_out, true};
     }
-    return {diff, false};
+    return {res.stdout_out, false};
 }
 
 // 调起编辑器让用户修改 message，返回修改后的内容
 std::string edit_in_editor(const std::string& initial) {
-    // 创建临时文件
     fs::path tmp = fs::temp_directory_path() / "cbot_commit_msg.txt";
     {
         std::ofstream ofs(tmp);
@@ -58,17 +45,18 @@ std::string edit_in_editor(const std::string& initial) {
     }
 
     const char* editor = std::getenv("EDITOR");
-    if (!editor) editor = std::getenv("VISUAL");
+    if (!editor)
+        editor = std::getenv("VISUAL");
     std::string editor_cmd = editor ? std::string(editor) : "nano";
 
-    std::string cmd = editor_cmd + " \"" + tmp.string() + "\"";
-    int ret = std::system(cmd.c_str());
+    // editor_cmd 作为独立参数，不经过 shell 解析
+    int ret = cbot::utils::run_interactive({editor_cmd, tmp.string()});
 
     std::string result = initial;
     if (ret == 0) {
         std::ifstream ifs(tmp);
-        result = std::string((std::istreambuf_iterator<char>(ifs)),
-                              std::istreambuf_iterator<char>());
+        result =
+            std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
         // 去除首尾空白
         size_t s = result.find_first_not_of(" \n\r\t");
         size_t e = result.find_last_not_of(" \n\r\t");
@@ -160,15 +148,13 @@ void handle_commit() {
         std::getline(std::cin, answer);
 
         if (answer == "y" || answer == "Y") {
-            // 构造 git commit 命令，使用单引号包裹（message 中可能有特殊字符）
-            // 先写入临时文件再用 -F 传入，避免 shell 转义问题
+            // 写入临时文件，用 -F 传入，彻底避免 shell 转义问题
             fs::path tmp = fs::temp_directory_path() / "cbot_commit_msg_final.txt";
             {
                 std::ofstream ofs(tmp);
                 ofs << commit_msg;
             }
-            std::string cmd = "git commit -F \"" + tmp.string() + "\"";
-            int ret = std::system(cmd.c_str());
+            int ret = cbot::utils::run_interactive({"git", "commit", "-F", tmp.string()});
             fs::remove(tmp);
 
             if (ret == 0)

@@ -167,6 +167,24 @@ std::string apply_comments(const std::string& original_source,
 
 }  // namespace
 
+namespace {
+
+// 从文件所在目录向上查找含 CMakeLists.txt 的项目根
+// 找不到则回退到文件自身所在目录
+fs::path find_project_root(const fs::path& file_path) {
+    fs::path dir = file_path.parent_path();
+    while (true) {
+        if (fs::exists(dir / "CMakeLists.txt"))
+            return dir;
+        fs::path parent = dir.parent_path();
+        if (parent == dir)
+            return file_path.parent_path();  // 到达文件系统根，回退
+        dir = parent;
+    }
+}
+
+}  // namespace
+
 namespace cbot {
 namespace commands {
 
@@ -211,8 +229,14 @@ void handle_doc(const std::vector<std::string>& files) {
 
         // 2. libclang 解析：获取所有函数/类定义及行号
         std::string abs_path = fs::absolute(file_path).string();
-        std::string include_dir = (file_path.parent_path().parent_path() / "include").string();
-        auto decls = cbot::utils::parse_declarations(abs_path, {include_dir});
+        fs::path root = find_project_root(fs::absolute(file_path));
+        std::vector<std::string> include_dirs;
+        if (fs::exists(root / "include"))
+            include_dirs.push_back((root / "include").string());
+        if (fs::exists(root / "src"))
+            include_dirs.push_back((root / "src").string());
+        include_dirs.push_back(fs::absolute(file_path).parent_path().string());
+        auto decls = cbot::utils::parse_declarations(abs_path, include_dirs);
 
         if (decls.empty()) {
             std::cout << "⚠️ 未发现任何函数/类定义，跳过此文件。\n";

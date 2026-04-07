@@ -14,8 +14,8 @@
 /**
  * @brief cbot 命令行工具的入口点。
  *
- * 该函数解析命令行参数，并根据子命令（如 init, test_llm, cmake, doc, build, format, commit）
- * 路由到相应的处理函数。
+ * 该函数解析命令行参数，并根据子命令（如 `init`, `test_llm`, `cmake`, `doc`, `build`, `format`, `commit`, `update`, `uninstall`）
+ * 路由到相应的处理函数。它还处理 `--help` 或 `-h` 选项以显示用法信息。
  *
  * @param argc 命令行参数的数量。
  * @param argv 包含命令行参数的 C 风格字符串数组。

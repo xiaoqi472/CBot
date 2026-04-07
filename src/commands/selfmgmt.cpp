@@ -1,27 +1,24 @@
 #include "commands/selfmgmt.hpp"
 
-#include <array>
-#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <thread>
+
+#include "utils/process.hpp"
 
 namespace fs = std::filesystem;
 
 namespace {
 
-const std::string INSTALL_DIR = std::string(std::getenv("HOME") ? std::getenv("HOME") : "") + "/.local/cbot";
-const std::string BIN_PATH        = "/usr/local/bin/cbot";
+const std::string INSTALL_DIR =
+    std::string(std::getenv("HOME") ? std::getenv("HOME") : "") + "/.local/cbot";
+const std::string BIN_PATH = "/usr/local/bin/cbot";
 const std::string COMPLETION_PATH = "/etc/bash_completion.d/cbot";
 
 // 检查是否为通过 install.sh 安装的环境
 bool is_managed_install() {
-    return fs::exists(INSTALL_DIR + "/.git") &&
-           fs::exists(INSTALL_DIR + "/build/cbot");
-}
-
-int run(const std::string& cmd) {
-    return std::system(cmd.c_str());
+    return fs::exists(INSTALL_DIR + "/.git") && fs::exists(INSTALL_DIR + "/build/cbot");
 }
 
 }  // namespace
@@ -40,7 +37,7 @@ void handle_update() {
 
     // 1. git pull
     std::cout << "── 拉取最新代码 ──\n";
-    int ret = run("git -C \"" + INSTALL_DIR + "\" pull --ff-only");
+    int ret = cbot::utils::run_interactive({"git", "-C", INSTALL_DIR, "pull", "--ff-only"});
     if (ret != 0) {
         std::cerr << "❌ git pull 失败，请检查网络或手动处理冲突。\n";
         return;
@@ -48,10 +45,19 @@ void handle_update() {
 
     // 2. 重新编译
     std::cout << "\n── 重新编译 ──\n";
-    std::string build_cmd =
-        "cmake -S \"" + INSTALL_DIR + "\" -B \"" + INSTALL_DIR + "/build\" -DCMAKE_BUILD_TYPE=Release -q"
-        " && cmake --build \"" + INSTALL_DIR + "/build\" -- -j$(nproc)";
-    ret = run(build_cmd);
+    ret = cbot::utils::run_interactive({"cmake", "-S", INSTALL_DIR, "-B", INSTALL_DIR + "/build",
+                                        "-DCMAKE_BUILD_TYPE=Release", "-q"});
+    if (ret != 0) {
+        std::cerr << "❌ cmake 配置失败，请检查上方输出。\n";
+        return;
+    }
+
+    unsigned int jobs = std::thread::hardware_concurrency();
+    if (jobs == 0)
+        jobs = 1;
+
+    ret = cbot::utils::run_interactive(
+        {"cmake", "--build", INSTALL_DIR + "/build", "--", "-j" + std::to_string(jobs)});
     if (ret != 0) {
         std::cerr << "❌ 编译失败，请检查上方输出。\n";
         return;
@@ -60,7 +66,7 @@ void handle_update() {
     // 3. 更新 bash 补全（如果有变更）
     std::string completion_src = INSTALL_DIR + "/cbot-completion.bash";
     if (fs::exists(completion_src) && fs::exists(COMPLETION_PATH)) {
-        run("sudo cp \"" + completion_src + "\" " + COMPLETION_PATH);
+        cbot::utils::run_interactive({"sudo", "cp", completion_src, COMPLETION_PATH});
     }
 
     std::cout << "\n✅ cbot 已更新至最新版本。\n";
@@ -87,13 +93,13 @@ void handle_uninstall() {
 
     // 删除软链接
     if (fs::exists(BIN_PATH) || fs::is_symlink(BIN_PATH)) {
-        run("sudo rm -f " + BIN_PATH);
+        cbot::utils::run_interactive({"sudo", "rm", "-f", BIN_PATH});
         std::cout << "  ✔ 已删除软链接\n";
     }
 
     // 删除 bash 补全
     if (fs::exists(COMPLETION_PATH)) {
-        run("sudo rm -f " + COMPLETION_PATH);
+        cbot::utils::run_interactive({"sudo", "rm", "-f", COMPLETION_PATH});
         std::cout << "  ✔ 已删除 bash 补全\n";
     }
 
@@ -101,7 +107,7 @@ void handle_uninstall() {
     std::cout << "\n是否同时删除源码和编译产物（" << INSTALL_DIR << "）？[y/N]: ";
     std::getline(std::cin, answer);
     if (answer == "y" || answer == "Y") {
-        run("rm -rf \"" + INSTALL_DIR + "\"");
+        cbot::utils::run_interactive({"rm", "-rf", INSTALL_DIR});
         std::cout << "  ✔ 已删除 " << INSTALL_DIR << "\n";
     } else {
         std::cout << "  源码目录已保留：" << INSTALL_DIR << "\n";

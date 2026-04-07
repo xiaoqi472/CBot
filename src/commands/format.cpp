@@ -1,12 +1,13 @@
 #include "commands/format.hpp"
 
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "utils/process.hpp"
 
 namespace fs = std::filesystem;
 
@@ -34,7 +35,8 @@ bool is_source_file(const fs::path& path) {
 }
 
 bool check_clang_format_installed() {
-    if (std::system("clang-format --version > /dev/null 2>&1") != 0) {
+    auto res = cbot::utils::run_capture({"clang-format", "--version"});
+    if (res.exit_code != 0) {
         std::cerr << "错误: 未检测到 clang-format，请先安装:\n"
                   << "  sudo apt install clang-format\n";
         return false;
@@ -125,11 +127,12 @@ void handle_format(const std::vector<std::string>& targets, bool init_mode) {
     for (const auto& file : files) {
         backups[file] = read_file(file);
 
-        std::string cmd = "clang-format -i \"" + file.string() + "\"";
-        int ret = std::system(cmd.c_str());
+        auto res = cbot::utils::run_capture({"clang-format", "-i", file.string()});
 
-        if (ret != 0) {
+        if (res.exit_code != 0) {
             std::cout << "❌ 格式化失败: " << file.string() << "\n";
+            if (!res.stderr_out.empty())
+                std::cerr << res.stderr_out;
             std::cout << "[A]bort（恢复已格式化的文件并退出）/ [S]kip（跳过此文件）: ";
             std::string answer;
             std::getline(std::cin, answer);
