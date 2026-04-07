@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-const size_t DIFF_SIZE_LIMIT = 8000;
+const size_t DIFF_SIZE_LIMIT = 100000;
 
 // 执行 shell 命令并捕获输出，返回 {exit_code, stdout}
 std::pair<int, std::string> run_command(const std::string& cmd) {
