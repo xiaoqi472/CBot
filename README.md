@@ -105,7 +105,17 @@ cbot commit
 
 ## 🚀 快速开始
 
-### 1. 环境依赖
+### 一键安装（推荐，仅支持 Ubuntu/Debian）
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/xiaoqi472/CBot/main/install.sh)
+```
+
+脚本会自动完成：系统依赖安装、源码拉取、编译、软链接创建、bash 补全配置。
+
+### 手动安装
+
+#### 1. 环境依赖
 
 - **编译器**：支持 C++17 的 GCC 或 Clang
 - **系统库**：`OpenSSL`、`libcurl`（用于 HTTPS 通信）、`libclang-dev`（用于 `cbot doc` 的 C++ 代码解析）、`clang-format`（用于 `cbot format`）
@@ -113,10 +123,10 @@ cbot commit
 
 ```bash
 # Ubuntu/Debian 安装系统依赖
-sudo apt install libssl-dev libcurl4-openssl-dev libclang-dev clang-format
+sudo apt install git cmake make g++ libssl-dev libcurl4-openssl-dev libclang-dev clang-format
 ```
 
-### 2. 编译
+#### 2. 编译
 
 ```bash
 git clone https://github.com/xiaoqi472/CBot.git
@@ -126,7 +136,14 @@ cmake ..
 make -j4
 ```
 
-推荐将编译产物 `cbot` 添加到系统 `PATH`，以便全局使用。
+```bash
+# 安装到系统路径
+sudo ln -s $(pwd)/cbot /usr/local/bin/cbot
+
+# 安装 bash 补全
+sudo cp ../cbot-completion.bash /etc/bash_completion.d/cbot
+source /etc/bash_completion.d/cbot
+```
 
 ### 3. 配置 API Key
 
