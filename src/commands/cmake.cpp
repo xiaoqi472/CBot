@@ -244,7 +244,30 @@ void handle_cmake(const std::string& target_path) {
     std::cout << "扫描完成，共发现 " << file_count
               << " 个源码文件。正在请求大模型推断 CMake 配置..." << std::endl;
 
-    // 3. 网络请求
+    // 3. 若已有 cbot 管理的 CMakeLists.txt，将用户自定义区附加到 context
+    //    让 LLM 知道哪些依赖已经在用户区处理，避免重复生成
+    fs::path cmake_path = work_dir / "CMakeLists.txt";
+    if (fs::exists(cmake_path)) {
+        std::ifstream ifs(cmake_path);
+        std::string existing((std::istreambuf_iterator<char>(ifs)),
+                             std::istreambuf_iterator<char>());
+        ifs.close();
+
+        const std::string end_marker = "# === CBOT_MANAGED_END ===";
+        size_t end_pos = existing.find(end_marker);
+        if (end_pos != std::string::npos) {
+            std::string user_zone = existing.substr(end_pos + end_marker.size());
+            // 去除前导空白，有内容才附加
+            size_t nws = user_zone.find_first_not_of(" \n\r\t");
+            if (nws != std::string::npos) {
+                project_context << "\n\n【重要】以下内容已在 CMakeLists.txt 用户自定义区中处理，"
+                                   "请勿在 MANAGED 块中重复生成这些依赖：\n";
+                project_context << user_zone.substr(nws);
+            }
+        }
+    }
+
+    // 4. 网络请求
     cbot::utils::LLMClient client;
 
     // 使用 Raw String 注入带有模板的强约束提示词
@@ -304,70 +327,108 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
         return;
     }
 
-    // 4. 清洗和写入文件（确保写入到目标目录 work_dir 下）
+    // 7. 清洗内容
     std::string clean_content = clean_markdown(response.value());
-    fs::path cmake_path = work_dir / "CMakeLists.txt";
+
+    // 8. 结构校验：拒绝明显不合法的 LLM 输出
+    if (clean_content.find("cmake_minimum_required") == std::string::npos ||
+        clean_content.find("project(") == std::string::npos) {
+        std::cerr << "❌ 大模型返回的内容不像合法的 CMakeLists.txt，已拒绝写入。\n";
+        std::cerr << "原始响应:\n" << response.value() << "\n";
+        return;
+    }
+
+    // 9. 打印预览
+    auto print_preview = [&](const std::string& content) {
+        std::cout << "\n---------------- 预览开始 ----------------\n";
+        std::cout << content << "\n";
+        std::cout << "---------------- 预览结束 ----------------\n\n";
+    };
 
     if (fs::exists(cmake_path)) {
-        // 读取现有文件，判断是否有 cbot 管理标记
+        // 读取现有文件（之前可能已读过，此处重新读以确保最新内容）
         std::ifstream ifs(cmake_path);
         std::string existing((std::istreambuf_iterator<char>(ifs)),
                              std::istreambuf_iterator<char>());
         ifs.close();
 
         if (has_managed_block(existing)) {
-            // 增量更新：只替换标记内的内容，标记外的用户自定义内容保持不动
+            // 增量更新：预览更新后的完整文件，确认后写入
             std::string updated = splice_managed_content(existing, clean_content);
+            std::cout << "以下是更新后的完整 CMakeLists.txt：";
+            print_preview(updated);
+            std::cout << "是否将上述内容写入 CMakeLists.txt？[y/N]: ";
+            std::string answer;
+            std::getline(std::cin, answer);
+            if (answer != "y" && answer != "Y") {
+                std::cout << "操作已取消。\n";
+                return;
+            }
             std::ofstream out(cmake_path);
             if (out.is_open()) {
                 out << updated;
                 out.close();
-                std::cout << "✅ 成功: 已增量更新 CMakeLists.txt（标记外的自定义内容已保留）"
-                          << std::endl;
+                std::cout << "✅ 成功: 已增量更新 CMakeLists.txt（标记外的自定义内容已保留）\n";
             } else {
-                std::cerr << "错误: 无法写入 CMakeLists.txt 文件。" << std::endl;
+                std::cerr << "错误: 无法写入 CMakeLists.txt 文件。\n";
             }
             return;
         }
 
-        // 无标记的旧文件，走原有覆写流程
-        std::cout << "\n⚠️ 警告: 目标目录 [" << work_dir.string()
-                  << "] 下已存在 CMakeLists.txt（无 cbot 管理标记）。" << std::endl;
-        std::cout << "是否要让 AI "
-                     "覆写它？(原文件会自动备份，覆写后将添加管理标记以支持后续增量更新) "
-                     "[y/N]: ";
+        // 无标记的旧文件，预览后询问覆写
+        std::cout << "\n⚠️ 警告: 目标目录下已存在 CMakeLists.txt（无 cbot 管理标记）。\n";
+        std::string final_content = wrap_with_markers(clean_content);
+        std::cout << "以下是将要写入的内容：";
+        print_preview(final_content);
+        std::cout << "是否覆写？(原文件会自动备份，覆写后将添加管理标记以支持后续增量更新) [y/N]: ";
 
         std::string answer;
         std::getline(std::cin, answer);
 
         if (answer != "y" && answer != "Y") {
-            std::cout << "\n操作已取消，目标目录的 CMakeLists.txt 保持不变。" << std::endl;
-            std::cout << "以下是大模型生成的配置，供你手动复制或参考：\n";
-            std::cout << std::string(50, '-') << "\n";
-            std::cout << clean_content << "\n";
-            std::cout << std::string(50, '-') << "\n";
+            std::cout << "操作已取消，CMakeLists.txt 保持不变。\n";
             return;
         }
 
-        // 备份机制（备份到目标目录下）
+        // 备份
         fs::path backup_path = work_dir / "CMakeLists.txt.bak";
         try {
             fs::copy_file(cmake_path, backup_path, fs::copy_options::overwrite_existing);
-            std::cout << "已将原文件安全备份为 CMakeLists.txt.bak" << std::endl;
+            std::cout << "已将原文件安全备份为 CMakeLists.txt.bak\n";
         } catch (const fs::filesystem_error& e) {
-            std::cerr << "备份旧 CMakeLists.txt 失败: " << e.what() << std::endl;
+            std::cerr << "备份旧 CMakeLists.txt 失败: " << e.what() << "\n";
         }
+
+        std::ofstream out_file(cmake_path);
+        if (out_file.is_open()) {
+            out_file << final_content;
+            out_file.close();
+            std::cout << "✅ 成功: CMakeLists.txt 已写入目标目录！\n";
+        } else {
+            std::cerr << "错误: 无法写入 CMakeLists.txt 文件。\n";
+        }
+        return;
     }
 
-    // 写入（新文件或覆写旧文件），包裹管理标记
+    // 新文件：预览后写入
     std::string final_content = wrap_with_markers(clean_content);
+    std::cout << "以下是将要生成的 CMakeLists.txt：";
+    print_preview(final_content);
+    std::cout << "是否写入 " << cmake_path.string() << "？[y/N]: ";
+    std::string answer;
+    std::getline(std::cin, answer);
+    if (answer != "y" && answer != "Y") {
+        std::cout << "操作已取消。\n";
+        return;
+    }
+
     std::ofstream out_file(cmake_path);
     if (out_file.is_open()) {
         out_file << final_content;
         out_file.close();
-        std::cout << "✅ 成功: CMakeLists.txt 已智能生成并写入目标目录！" << std::endl;
+        std::cout << "✅ 成功: CMakeLists.txt 已智能生成并写入目标目录！\n";
     } else {
-        std::cerr << "错误: 无法写入 CMakeLists.txt 文件。" << std::endl;
+        std::cerr << "错误: 无法写入 CMakeLists.txt 文件。\n";
     }
 }
 

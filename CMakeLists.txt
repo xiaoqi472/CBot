@@ -14,21 +14,24 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # 3. 依赖管理
-# cpr (lightweight library)
+# cpr (HTTP client)
 find_package(cpr QUIET)
 if(NOT cpr_FOUND)
     include(FetchContent)
     FetchContent_Declare(cpr GIT_REPOSITORY https://github.com/libcpr/cpr.git GIT_TAG 1.10.5)
-    set(CPR_USE_SYSTEM_CURL ON)
+    set(CPR_USE_SYSTEM_CURL ON) # Prefer system curl if available
     FetchContent_MakeAvailable(cpr)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE cpr::cpr)
 
-# nlohmann/json (lightweight library)
+# nlohmann/json (JSON library)
 find_package(nlohmann_json QUIET)
 if(NOT nlohmann_json_FOUND)
     include(FetchContent)
-    FetchContent_Declare(nlohmann_json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.11.3)
+    FetchContent_Declare(nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3 # Or a specific commit/tag
+    )
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
