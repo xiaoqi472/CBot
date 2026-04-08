@@ -2,8 +2,8 @@
 
 #include <string>
 
-namespace cbot {
-namespace commands {
+
+namespace cbot::commands {
 
 /**
  * @brief 处理 init 子命令，初始化标准 C++ 项目结构
@@ -11,5 +11,4 @@ namespace commands {
  */
 void handle_init(const std::string& project_name);
 
-}  // namespace commands
-}  // namespace cbot
+} // namespace cbot::commands

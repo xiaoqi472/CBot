@@ -1,0 +1,19 @@
+# 开启核心检查项，禁用无关干扰项
+Checks: >
+  bugprone-*,
+  performance-*,
+  readability-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -readability-braces-around-statements,
+  -readability-magic-numbers
+
+# 限制只检查本项目头文件产生的警告
+HeaderFilterRegex: 'include/.*'
+
+# 检查设置
+CheckOptions:
+  - key:             readability-function-cognitive-complexity.Threshold
+    value:           '25'
+  - key:             modernize-use-emplace.IgnoreImplicitConstructors
+    value:           'true'

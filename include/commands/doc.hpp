@@ -2,8 +2,8 @@
 #include <string>
 #include <vector>
 
-namespace cbot {
-namespace commands {
+
+namespace cbot::commands {
 
 /**
  * @brief 处理 doc 子命令，为指定的多个 C++ 文件添加 Doxygen 注释
@@ -11,5 +11,5 @@ namespace commands {
  */
 void handle_doc(const std::vector<std::string>& files);
 
-}  // namespace commands
-}  // namespace cbot
+} // namespace cbot::commands
+

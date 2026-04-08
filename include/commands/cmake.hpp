@@ -1,8 +1,8 @@
 #pragma once
 #include <string>
 
-namespace cbot {
-namespace commands {
+
+namespace cbot::commands {
 
 /**
  * @brief 处理 cmake 子命令，智能分析项目结构并生成 CMakeLists.txt
@@ -10,5 +10,4 @@ namespace commands {
  */
 void handle_cmake(const std::string& target_path = ".");
 
-}  // namespace commands
-}  // namespace cbot
+} // namespace cbot::commands

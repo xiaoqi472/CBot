@@ -2,10 +2,10 @@
 #include <string>
 #include <vector>
 
-namespace cbot {
-namespace commands {
+
+namespace cbot::commands {
 
 void handle_format(const std::vector<std::string>& targets, bool init_mode);
 
-}  // namespace commands
-}  // namespace cbot
+} // namespace cbot::commands
+

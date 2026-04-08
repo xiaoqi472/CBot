@@ -3,8 +3,8 @@
 #include <optional>
 #include <string>
 
-namespace cbot {
-namespace utils {
+
+namespace cbot::utils {
 
 class LLMClient {
    public:
@@ -30,5 +30,4 @@ class LLMClient {
     void load_api_key();
 };
 
-}  // namespace utils
-}  // namespace cbot
+} // namespace cbot::utils

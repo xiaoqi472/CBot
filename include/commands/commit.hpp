@@ -1,9 +1,9 @@
 #pragma once
 
-namespace cbot {
-namespace commands {
+
+namespace cbot::commands {
 
 void handle_commit();
 
-}  // namespace commands
-}  // namespace cbot
+} // namespace cbot::commands
+

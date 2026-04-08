@@ -1,4 +1,6 @@
+#include <functional>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -11,16 +13,8 @@
 #include "commands/selfmgmt.hpp"
 #include "utils/llm_client.hpp"
 
-/**
- * @brief cbot 命令行工具的入口点。
- *
- * 该函数解析命令行参数，并根据子命令（如 `init`, `test_llm`, `cmake`, `doc`, `build`, `format`, `commit`, `update`, `uninstall`）
- * 路由到相应的处理函数。它还处理 `--help` 或 `-h` 选项以显示用法信息。
- *
- * @param argc 命令行参数的数量。
- * @param argv 包含命令行参数的 C 风格字符串数组。
- * @return 0 表示成功执行，1 表示发生错误或用法不正确。
- */
+using Handler = std::function<int(const std::vector<std::string>&)>;
+
 int main(int argc, char* argv[]) {
     std::vector<std::string> args(argv, argv + argc);
 
@@ -39,71 +33,75 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    std::map<std::string, Handler> commands = {
+        {"init", [](const auto& a) {
+            if (a.size() != 3) {
+                std::cerr << "用法: cbot init <project_name>\n";
+                return 1;
+            }
+            cbot::commands::handle_init(a[2]);
+            return 0;
+        }},
+        {"test_llm", [](const auto&) {
+            std::cout << "正在连接 Gemini API...\n";
+            cbot::utils::LLMClient client;
+            auto resp = client.generate_response("你是一个C++专家。只用一句话回答问题。", "解释一下什么是 RAII？");
+            if (resp) {
+                std::cout << "\n[大模型返回成功]: \n" << resp.value() << '\n';
+            } else {
+                std::cerr << "\n[大模型调用失败]\n";
+            }
+            return 0;
+        }},
+        {"cmake", [](const auto& a) {
+            cbot::commands::handle_cmake(a.size() >= 3 ? a[2] : ".");
+            return 0;
+        }},
+        {"doc", [](const auto& a) {
+            if (a.size() < 3) {
+                std::cerr << "用法: cbot doc <file1> [file2] ...\n";
+                return 1;
+            }
+            cbot::commands::handle_doc({a.begin() + 2, a.end()});
+            return 0;
+        }},
+        {"build", [](const auto&) {
+            cbot::commands::handle_build();
+            return 0;
+        }},
+        {"format", [](const auto& a) {
+            bool init_mode = false;
+            std::vector<std::string> targets;
+            for (size_t i = 2; i < a.size(); ++i) {
+                if (a[i] == "--init") {
+                    init_mode = true;
+                } else {
+                    targets.push_back(a[i]);
+                }
+            }
+            if (!init_mode && targets.empty()) targets.push_back(".");
+            cbot::commands::handle_format(targets, init_mode);
+            return 0;
+        }},
+        {"commit", [](const auto&) {
+            cbot::commands::handle_commit();
+            return 0;
+        }},
+        {"update", [](const auto&) {
+            cbot::commands::handle_update();
+            return 0;
+        }},
+        {"uninstall", [](const auto&) {
+            cbot::commands::handle_uninstall();
+            return 0;
+        }},
+    };
+
     std::string command = args[1];
-
-    if (command == "init") {
-        if (args.size() != 3) {
-            std::cerr << "用法: cbot init <project_name>" << std::endl;
-            return 1;
-        }
-        cbot::commands::handle_init(args[2]);
-    }
-    // [新增] test_llm 路由分支
-    else if (command == "test_llm") {
-        std::cout << "正在连接 Gemini API..." << std::endl;
-
-        // 实例化客户端，默认使用 gemini-2.5-flash
-        cbot::utils::LLMClient client;
-
-        std::string sys_prompt = "你是一个C++专家。只用一句话回答问题。";
-        std::string usr_prompt = "解释一下什么是 RAII？";
-
-        auto response = client.generate_response(sys_prompt, usr_prompt);
-        if (response) {
-            std::cout << "\n[大模型返回成功]: \n" << response.value() << std::endl;
-        } else {
-            std::cerr << "\n[大模型调用失败]" << std::endl;
-        }
-    }
-    // 【修改点】增加对目标路径参数的解析
-    else if (command == "cmake") {
-        std::string target_path = ".";  // 默认当前目录
-        if (args.size() >= 3) {
-            target_path = args[2];  // 用户指定了路径
-        }
-        cbot::commands::handle_cmake(target_path);
-    } else if (command == "doc") {
-        if (args.size() < 3) {
-            std::cerr << "用法: cbot doc <file1> [file2] ..." << std::endl;
-            return 1;
-        }
-        // 将命令行传入的多个文件路径打包为 vector
-        std::vector<std::string> target_files(args.begin() + 2, args.end());
-        cbot::commands::handle_doc(target_files);
-    } else if (command == "build") {
-        cbot::commands::handle_build();
-    } else if (command == "format") {
-        bool init_mode = false;
-        std::vector<std::string> format_targets;
-        for (size_t i = 2; i < args.size(); ++i) {
-            if (args[i] == "--init")
-                init_mode = true;
-            else
-                format_targets.push_back(args[i]);
-        }
-        if (!init_mode && format_targets.empty())
-            format_targets.push_back(".");
-        cbot::commands::handle_format(format_targets, init_mode);
-    } else if (command == "commit") {
-        cbot::commands::handle_commit();
-    } else if (command == "update") {
-        cbot::commands::handle_update();
-    } else if (command == "uninstall") {
-        cbot::commands::handle_uninstall();
-    } else {
-        std::cerr << "未知命令: " << command << std::endl;
+    auto it = commands.find(command);
+    if (it == commands.end()) {
+        std::cerr << "未知命令: " << command << '\n';
         return 1;
     }
-
-    return 0;
+    return it->second(args);
 }
