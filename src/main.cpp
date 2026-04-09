@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
         }},
     };
 
-    std::string command = args[1];
+    const std::string& command = args[1];
     auto it = commands.find(command);
     if (it == commands.end()) {
         std::cerr << "未知命令: " << command << '\n';
